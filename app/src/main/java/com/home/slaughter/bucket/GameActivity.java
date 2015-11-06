@@ -2,10 +2,13 @@ package com.home.slaughter.bucket;
 
 import static org.andengine.extension.physics.box2d.util.constants.PhysicsConstants.PIXEL_TO_METER_RATIO_DEFAULT;
 
+import org.andengine.engine.Engine;
 import org.andengine.engine.camera.Camera;
+import org.andengine.engine.handler.IUpdateHandler;
 import org.andengine.engine.options.EngineOptions;
 import org.andengine.engine.options.ScreenOrientation;
 import org.andengine.engine.options.resolutionpolicy.RatioResolutionPolicy;
+import org.andengine.entity.primitive.Line;
 import org.andengine.entity.primitive.Rectangle;
 import org.andengine.entity.scene.IOnSceneTouchListener;
 import org.andengine.entity.scene.Scene;
@@ -65,6 +68,9 @@ public class GameActivity extends SimpleBaseGameActivity implements IAcceleratio
     private int mFaceCount = 0;
 
     final Scene mScene = new Scene();
+    Line line;
+    Sprite worm;
+
 
     // ===========================================================
     // Constructors
@@ -105,15 +111,13 @@ public class GameActivity extends SimpleBaseGameActivity implements IAcceleratio
         mScene.setBackground(new Background(0.09804f, 0.6274f, 0.8784f));
         mScene.setOnSceneTouchListener(this);
 
-        final float centerX = (CAMERA_WIDTH - mCircleFaceTextureRegion.getWidth()) / 2;
-        final float centerY = (CAMERA_HEIGHT - mCircleFaceTextureRegion.getHeight()) / 2;
-
-        final Sprite worm = new Sprite(getTextureCenterX(mWormTextureRegion), CAMERA_HEIGHT - 2 - mWormTextureRegion.getHeight(), mWormTextureRegion, this.getVertexBufferObjectManager());
+        worm = new Sprite(getTextureCenterX(mWormTextureRegion), CAMERA_HEIGHT - 2 - mWormTextureRegion.getHeight(), mWormTextureRegion, this.getVertexBufferObjectManager());
         final Sprite triangle = new Sprite(getTextureCenterX(mTriangleTestureRegion), 0, mTriangleTestureRegion, this.getVertexBufferObjectManager());
 
         mPhysicsWorld = new PhysicsWorld(new Vector2(0, SensorManager.GRAVITY_EARTH), false);
-        Body wormBody = PhysicsFactory.createBoxBody(mPhysicsWorld, worm, BodyType.StaticBody, FIXTURE_DEF);
-        mPhysicsWorld.registerPhysicsConnector(new PhysicsConnector(worm, wormBody, true, true));
+        //Body wormBody = PhysicsFactory.createBoxBody(mPhysicsWorld, worm, BodyType.StaticBody, FIXTURE_DEF);
+        line = new Line(getTextureCenterX(mWormTextureRegion), CAMERA_HEIGHT - 5, (CAMERA_WIDTH + mWormTextureRegion.getWidth()), CAMERA_HEIGHT - 5, getVertexBufferObjectManager());
+        //mPhysicsWorld.registerPhysicsConnector(new PhysicsConnector(worm, wormBody, true, true));
 
         final VertexBufferObjectManager vertexBufferObjectManager = this.getVertexBufferObjectManager();
         final Rectangle ground = new Rectangle(0, CAMERA_HEIGHT - 2, CAMERA_WIDTH, 2, vertexBufferObjectManager);
@@ -122,17 +126,17 @@ public class GameActivity extends SimpleBaseGameActivity implements IAcceleratio
         final Rectangle right = new Rectangle(CAMERA_WIDTH - 2, 0, 2, CAMERA_HEIGHT, vertexBufferObjectManager);
 
         final FixtureDef wallFixtureDef = PhysicsFactory.createFixtureDef(0, 0.5f, 0.5f);
-        PhysicsFactory.createBoxBody(this.mPhysicsWorld, ground, BodyType.StaticBody, wallFixtureDef);
-        PhysicsFactory.createBoxBody(this.mPhysicsWorld, roof, BodyType.StaticBody, wallFixtureDef);
-        PhysicsFactory.createBoxBody(this.mPhysicsWorld, left, BodyType.StaticBody, wallFixtureDef);
-        PhysicsFactory.createBoxBody(this.mPhysicsWorld, right, BodyType.StaticBody, wallFixtureDef);
+        PhysicsFactory.createBoxBody(mPhysicsWorld, ground, BodyType.StaticBody, wallFixtureDef);
+        PhysicsFactory.createBoxBody(mPhysicsWorld, roof, BodyType.StaticBody, wallFixtureDef);
+        PhysicsFactory.createBoxBody(mPhysicsWorld, left, BodyType.StaticBody, wallFixtureDef);
+        PhysicsFactory.createBoxBody(mPhysicsWorld, right, BodyType.StaticBody, wallFixtureDef);
 
         mScene.attachChild(ground);
         mScene.attachChild(roof);
         mScene.attachChild(left);
         mScene.attachChild(right);
 
-        mScene.registerUpdateHandler(this.mPhysicsWorld);
+        mScene.registerUpdateHandler(mPhysicsWorld);
         mScene.attachChild(worm);
         mScene.attachChild(triangle);
 
@@ -145,7 +149,7 @@ public class GameActivity extends SimpleBaseGameActivity implements IAcceleratio
 
     @Override
     public boolean onSceneTouchEvent(final Scene pScene, final TouchEvent pSceneTouchEvent) {
-        if(this.mPhysicsWorld != null) {
+        if(mPhysicsWorld != null) {
             if(pSceneTouchEvent.isActionDown()) {
                 this.addFace(pSceneTouchEvent.getX(), pSceneTouchEvent.getY());
                 return true;
@@ -184,12 +188,43 @@ public class GameActivity extends SimpleBaseGameActivity implements IAcceleratio
         final AnimatedSprite face;
 
         face = new AnimatedSprite(pX, pY, this.mCircleFaceTextureRegion, this.getVertexBufferObjectManager());
-        Body body = PhysicsFactory.createBoxBody(this.mPhysicsWorld, face, BodyType.DynamicBody, FIXTURE_DEF);
+        Body body = PhysicsFactory.createCircleBody(mPhysicsWorld, face, BodyType.DynamicBody, FIXTURE_DEF);
 
         face.animate(200);
 
         mScene.attachChild(face);
+        mScene.detachChild(worm);
+        mScene.attachChild(worm);
         mPhysicsWorld.registerPhysicsConnector(new PhysicsConnector(face, body, true, true));
+        mScene.registerUpdateHandler(new IUpdateHandler() {
+            @Override
+            public void reset() {
+            }
+
+            @Override
+            public void onUpdate(final float pSecondsElapsed) {
+                if (line.collidesWith(face)) {
+                    removeFace(face);
+                }
+
+            }
+        });
     }
+
+    private void removeFace(final AnimatedSprite face) {
+        final PhysicsConnector facePhysicsConnector = mPhysicsWorld.getPhysicsConnectorManager().findPhysicsConnectorByShape(face);
+        if (facePhysicsConnector != null) {
+            mPhysicsWorld.unregisterPhysicsConnector(facePhysicsConnector);
+            mPhysicsWorld.destroyBody(facePhysicsConnector.getBody());
+
+            this.mScene.unregisterTouchArea(face);
+            this.mScene.detachChild(face);
+            face.stopAnimation();
+            face.setX(-face.getWidth());
+            System.gc();
+        }
+    }
+
+
 
 }
