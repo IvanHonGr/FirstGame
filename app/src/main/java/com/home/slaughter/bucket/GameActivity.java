@@ -36,6 +36,7 @@ import org.andengine.util.debug.Debug;
 
 import android.graphics.Bitmap;
 import android.hardware.SensorManager;
+import android.util.Log;
 import android.widget.Toast;
 
 import com.badlogic.gdx.math.Vector2;
@@ -51,6 +52,7 @@ public class GameActivity extends SimpleBaseGameActivity implements IAcceleratio
 
     private static final int CAMERA_WIDTH = 720;
     private static final int CAMERA_HEIGHT = 480;
+    private static final int WORM_MUSTAGE_WIDTH = 35;
 
     private static final FixtureDef FIXTURE_DEF = PhysicsFactory.createFixtureDef(1, 0.5f, 0.5f);
 
@@ -99,8 +101,8 @@ public class GameActivity extends SimpleBaseGameActivity implements IAcceleratio
 
         mBitmapTextureAtlas = new BitmapTextureAtlas(this.getTextureManager(), 512, 256, TextureOptions.BILINEAR);
         mCircleFaceTextureRegion = BitmapTextureAtlasTextureRegionFactory.createTiledFromAsset(mBitmapTextureAtlas, this, "happy_smile.png", 0, 0, 2, 1); // 64x32
-        mWormTextureRegion = BitmapTextureAtlasTextureRegionFactory.createFromAsset(mBitmapTextureAtlas, this, "worm.png", 64, 0); //116x135
-        mTriangleTestureRegion = BitmapTextureAtlasTextureRegionFactory.createFromAsset(mBitmapTextureAtlas, this, "triangle.png", 180, 0); //188x77
+        mWormTextureRegion = BitmapTextureAtlasTextureRegionFactory.createFromAsset(mBitmapTextureAtlas, this, "worm_b_small.png", 64, 0); //200x88
+        mTriangleTestureRegion = BitmapTextureAtlasTextureRegionFactory.createFromAsset(mBitmapTextureAtlas, this, "triangle.png", 264, 0); //188x77
         mBitmapTextureAtlas.load();
     }
 
@@ -116,7 +118,7 @@ public class GameActivity extends SimpleBaseGameActivity implements IAcceleratio
 
         mPhysicsWorld = new PhysicsWorld(new Vector2(0, SensorManager.GRAVITY_EARTH), false);
         //Body wormBody = PhysicsFactory.createBoxBody(mPhysicsWorld, worm, BodyType.StaticBody, FIXTURE_DEF);
-        line = new Line(getTextureCenterX(mWormTextureRegion), CAMERA_HEIGHT - 5, (CAMERA_WIDTH + mWormTextureRegion.getWidth()), CAMERA_HEIGHT - 5, getVertexBufferObjectManager());
+        line = new Line(getTextureCenterX(mWormTextureRegion) + WORM_MUSTAGE_WIDTH, CAMERA_HEIGHT - 5, (CAMERA_WIDTH + mWormTextureRegion.getWidth())/2 - WORM_MUSTAGE_WIDTH, CAMERA_HEIGHT - 5, getVertexBufferObjectManager());
         //mPhysicsWorld.registerPhysicsConnector(new PhysicsConnector(worm, wormBody, true, true));
 
         final VertexBufferObjectManager vertexBufferObjectManager = this.getVertexBufferObjectManager();
@@ -139,6 +141,24 @@ public class GameActivity extends SimpleBaseGameActivity implements IAcceleratio
         mScene.registerUpdateHandler(mPhysicsWorld);
         mScene.attachChild(worm);
         mScene.attachChild(triangle);
+
+        mScene.registerUpdateHandler(new IUpdateHandler() {
+            float timePassed = 0;
+            @Override
+            public void reset() {
+                Log.e("Reset", "it is time");
+            }
+
+            @Override
+            public void onUpdate(final float pSecondsElapsed) {
+                timePassed += pSecondsElapsed;
+                if (timePassed > 0.5) {
+                    addFace((CAMERA_WIDTH - triangle.getWidth())/2 + (int) (Math.random() * (triangle.getWidth() - 32)), triangle.getHeight());
+                    timePassed = 0;
+                }
+
+            }
+        });
 
         return mScene;
     }
