@@ -1,8 +1,5 @@
 package com.home.slaughter.bucket;
 
-import static org.andengine.extension.physics.box2d.util.constants.PhysicsConstants.PIXEL_TO_METER_RATIO_DEFAULT;
-
-import org.andengine.engine.Engine;
 import org.andengine.engine.camera.Camera;
 import org.andengine.engine.handler.IUpdateHandler;
 import org.andengine.engine.options.EngineOptions;
@@ -28,13 +25,10 @@ import org.andengine.opengl.texture.TextureOptions;
 import org.andengine.opengl.texture.atlas.bitmap.BitmapTextureAtlas;
 import org.andengine.opengl.texture.atlas.bitmap.BitmapTextureAtlasTextureRegionFactory;
 import org.andengine.opengl.texture.region.ITextureRegion;
-import org.andengine.opengl.texture.region.TextureRegion;
 import org.andengine.opengl.texture.region.TiledTextureRegion;
 import org.andengine.opengl.vbo.VertexBufferObjectManager;
 import org.andengine.ui.activity.SimpleBaseGameActivity;
-import org.andengine.util.debug.Debug;
 
-import android.graphics.Bitmap;
 import android.hardware.SensorManager;
 import android.util.Log;
 import android.widget.Toast;
@@ -43,48 +37,26 @@ import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.Body;
 import com.badlogic.gdx.physics.box2d.BodyDef.BodyType;
 import com.badlogic.gdx.physics.box2d.FixtureDef;
-import com.badlogic.gdx.physics.box2d.PolygonShape;
+import com.home.slaughter.bucket.bodies.WormMouth;
+
+import static org.andengine.extension.physics.box2d.util.constants.PhysicsConstants.PIXEL_TO_METER_RATIO_DEFAULT;
 
 public class GameActivity extends SimpleBaseGameActivity implements IAccelerationListener, IOnSceneTouchListener {
-    // ===========================================================
-    // Constants
-    // ===========================================================
 
     private static final int CAMERA_WIDTH = 720;
     private static final int CAMERA_HEIGHT = 480;
     private static final int WORM_MUSTAGE_WIDTH = 35;
-
     private static final FixtureDef FIXTURE_DEF = PhysicsFactory.createFixtureDef(1, 0.5f, 0.5f);
 
-    // ===========================================================
-    // Fields
-    // ===========================================================
-
-    private BitmapTextureAtlas mBitmapTextureAtlas;
     private ITextureRegion mWormTextureRegion;
-    private ITextureRegion mTriangleTestureRegion;
-
+    private ITextureRegion mTriangleTextureRegion;
     private TiledTextureRegion mCircleFaceTextureRegion;
-
     private PhysicsWorld mPhysicsWorld;
-    private int mFaceCount = 0;
 
     final Scene mScene = new Scene();
     Line line;
     Sprite worm;
 
-
-    // ===========================================================
-    // Constructors
-    // ===========================================================
-
-    // ===========================================================
-    // Getter & Setter
-    // ===========================================================
-
-    // ===========================================================
-    // Methods for/from SuperClass/Interfaces
-    // ===========================================================
 
     @Override
     public EngineOptions onCreateEngineOptions() {
@@ -99,10 +71,10 @@ public class GameActivity extends SimpleBaseGameActivity implements IAcceleratio
     public void onCreateResources() {
         BitmapTextureAtlasTextureRegionFactory.setAssetBasePath("gfx/");
 
-        mBitmapTextureAtlas = new BitmapTextureAtlas(this.getTextureManager(), 512, 256, TextureOptions.BILINEAR);
+        BitmapTextureAtlas mBitmapTextureAtlas = new BitmapTextureAtlas(this.getTextureManager(), 512, 256, TextureOptions.BILINEAR);
         mCircleFaceTextureRegion = BitmapTextureAtlasTextureRegionFactory.createTiledFromAsset(mBitmapTextureAtlas, this, "happy_smile.png", 0, 0, 2, 1); // 64x32
         mWormTextureRegion = BitmapTextureAtlasTextureRegionFactory.createFromAsset(mBitmapTextureAtlas, this, "worm_b_small.png", 64, 0); //200x88
-        mTriangleTestureRegion = BitmapTextureAtlasTextureRegionFactory.createFromAsset(mBitmapTextureAtlas, this, "triangle.png", 264, 0); //188x77
+        mTriangleTextureRegion = BitmapTextureAtlasTextureRegionFactory.createFromAsset(mBitmapTextureAtlas, this, "ufo_0_small.png", 264, 0); //188x77
         mBitmapTextureAtlas.load();
     }
 
@@ -113,13 +85,15 @@ public class GameActivity extends SimpleBaseGameActivity implements IAcceleratio
         mScene.setBackground(new Background(0.09804f, 0.6274f, 0.8784f));
         mScene.setOnSceneTouchListener(this);
 
-        worm = new Sprite(getTextureCenterX(mWormTextureRegion), CAMERA_HEIGHT - 2 - mWormTextureRegion.getHeight(), mWormTextureRegion, this.getVertexBufferObjectManager());
-        final Sprite triangle = new Sprite(getTextureCenterX(mTriangleTestureRegion), 0, mTriangleTestureRegion, this.getVertexBufferObjectManager());
-
         mPhysicsWorld = new PhysicsWorld(new Vector2(0, SensorManager.GRAVITY_EARTH), false);
-        //Body wormBody = PhysicsFactory.createBoxBody(mPhysicsWorld, worm, BodyType.StaticBody, FIXTURE_DEF);
+        worm = new Sprite(getTextureCenterX(mWormTextureRegion), CAMERA_HEIGHT - 2 - mWormTextureRegion.getHeight(), mWormTextureRegion, this.getVertexBufferObjectManager());
+        Body wormLeftPart = WormMouth.createWormMouthBody(mPhysicsWorld, worm, BodyType.StaticBody, PhysicsFactory.createFixtureDef(100, 0, 0.5f), WormMouth.LEFT);
+        Body wormRightPart = WormMouth.createWormMouthBody(mPhysicsWorld, worm, BodyType.StaticBody, PhysicsFactory.createFixtureDef(100, 0, 0.5f), WormMouth.RIGHT);
+        mPhysicsWorld.registerPhysicsConnector(new PhysicsConnector(worm, wormLeftPart, true, true));
+        mPhysicsWorld.registerPhysicsConnector(new PhysicsConnector(worm, wormRightPart, true, true));
+
+        final Sprite triangle = new Sprite(getTextureCenterX(mTriangleTextureRegion), 0, mTriangleTextureRegion, this.getVertexBufferObjectManager());
         line = new Line(getTextureCenterX(mWormTextureRegion) + WORM_MUSTAGE_WIDTH, CAMERA_HEIGHT - 5, (CAMERA_WIDTH + mWormTextureRegion.getWidth())/2 - WORM_MUSTAGE_WIDTH, CAMERA_HEIGHT - 5, getVertexBufferObjectManager());
-        //mPhysicsWorld.registerPhysicsConnector(new PhysicsConnector(worm, wormBody, true, true));
 
         final VertexBufferObjectManager vertexBufferObjectManager = this.getVertexBufferObjectManager();
         final Rectangle ground = new Rectangle(0, CAMERA_HEIGHT - 2, CAMERA_WIDTH, 2, vertexBufferObjectManager);
@@ -142,6 +116,9 @@ public class GameActivity extends SimpleBaseGameActivity implements IAcceleratio
         mScene.attachChild(worm);
         mScene.attachChild(triangle);
 
+
+
+//ToDo change to TimerHandler
         mScene.registerUpdateHandler(new IUpdateHandler() {
             float timePassed = 0;
             @Override
@@ -152,7 +129,7 @@ public class GameActivity extends SimpleBaseGameActivity implements IAcceleratio
             @Override
             public void onUpdate(final float pSecondsElapsed) {
                 timePassed += pSecondsElapsed;
-                if (timePassed > 0.5) {
+                if (timePassed > 0.1) {
                     addFace((CAMERA_WIDTH - triangle.getWidth())/2 + (int) (Math.random() * (triangle.getWidth() - 32)), triangle.getHeight());
                     timePassed = 0;
                 }
@@ -207,7 +184,7 @@ public class GameActivity extends SimpleBaseGameActivity implements IAcceleratio
 
         final AnimatedSprite face;
 
-        face = new AnimatedSprite(pX, pY, this.mCircleFaceTextureRegion, this.getVertexBufferObjectManager());
+        face = new AnimatedSprite(pX, pY, mCircleFaceTextureRegion, getVertexBufferObjectManager());
         Body body = PhysicsFactory.createCircleBody(mPhysicsWorld, face, BodyType.DynamicBody, FIXTURE_DEF);
 
         face.animate(200);
@@ -225,24 +202,51 @@ public class GameActivity extends SimpleBaseGameActivity implements IAcceleratio
             public void onUpdate(final float pSecondsElapsed) {
                 if (line.collidesWith(face)) {
                     removeFace(face);
+                    mScene.unregisterUpdateHandler(this);
                 }
-
             }
         });
     }
 
     private void removeFace(final AnimatedSprite face) {
         final PhysicsConnector facePhysicsConnector = mPhysicsWorld.getPhysicsConnectorManager().findPhysicsConnectorByShape(face);
-        if (facePhysicsConnector != null) {
-            mPhysicsWorld.unregisterPhysicsConnector(facePhysicsConnector);
-            mPhysicsWorld.destroyBody(facePhysicsConnector.getBody());
+        mPhysicsWorld.unregisterPhysicsConnector(facePhysicsConnector);
+        mPhysicsWorld.destroyBody(facePhysicsConnector.getBody());
 
-            this.mScene.unregisterTouchArea(face);
-            this.mScene.detachChild(face);
-            face.stopAnimation();
-            face.setX(-face.getWidth());
-            System.gc();
-        }
+        mScene.unregisterTouchArea(face);
+        mScene.detachChild(face);
+        face.detachChildren();
+        face.detachSelf();
+        System.gc();
+    }
+
+    private static Body createHexagonBody(final PhysicsWorld pPhysicsWorld, final IAreaShape pAreaShape, final BodyType pBodyType, final FixtureDef pFixtureDef) {
+		/* Remember that the vertices are relative to the center-coordinates of the Shape. */
+        final float halfWidth = pAreaShape.getWidthScaled() * 0.5f / PIXEL_TO_METER_RATIO_DEFAULT;
+        final float halfHeight = pAreaShape.getHeightScaled() * 0.5f / PIXEL_TO_METER_RATIO_DEFAULT;
+
+		/* The top and bottom vertex of the hexagon are on the bottom and top of hexagon-sprite. */
+        final float top = -halfHeight;
+        final float bottom = halfHeight;
+
+        final float centerX = 0;
+
+		/* The left and right vertices of the heaxgon are not on the edge of the hexagon-sprite, so we need to inset them a little. */
+        final float left = -halfWidth + 2.5f / PIXEL_TO_METER_RATIO_DEFAULT;
+        final float right = halfWidth - 2.5f / PIXEL_TO_METER_RATIO_DEFAULT;
+        final float higher = top + 8.25f / PIXEL_TO_METER_RATIO_DEFAULT;
+        final float lower = bottom - 8.25f / PIXEL_TO_METER_RATIO_DEFAULT;
+
+        final Vector2[] vertices = {
+                new Vector2(centerX, top),
+                new Vector2(right, higher),
+                new Vector2(right, lower),
+                new Vector2(centerX, bottom),
+                new Vector2(left, lower),
+                new Vector2(left, higher)
+        };
+
+        return PhysicsFactory.createPolygonBody(pPhysicsWorld, pAreaShape, vertices, pBodyType, pFixtureDef);
     }
 
 
