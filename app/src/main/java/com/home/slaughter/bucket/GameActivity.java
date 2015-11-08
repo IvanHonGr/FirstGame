@@ -129,7 +129,7 @@ public class GameActivity extends SimpleBaseGameActivity implements IAcceleratio
             @Override
             public void onUpdate(final float pSecondsElapsed) {
                 timePassed += pSecondsElapsed;
-                if (timePassed > 0.1) {
+                if (timePassed > 0.3) {
                     addFace((CAMERA_WIDTH - triangle.getWidth())/2 + (int) (Math.random() * (triangle.getWidth() - 32)), triangle.getHeight());
                     timePassed = 0;
                 }
